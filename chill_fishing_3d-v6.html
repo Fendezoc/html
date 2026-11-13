@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Lake 3D v6 - Chế Độ Ẩn Toàn Bộ UI (Pure Chill Mode)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background-color: #040810;
+            color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #glCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        #uiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Hiệu ứng chuyển đổi mượt khi Ẩn/Hiện UI */
+        .ui-element {
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        body.zen-hide-all .ui-element {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(-10px);
+        }
+
+        /* Nút nhỏ gọn góc phải để bật lại UI khi đang Ẩn Tất Cả */
+        #restore-ui-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 50;
+            background: rgba(8, 16, 28, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.65);
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+            transition: all 0.25s ease;
+        }
+        #restore-ui-btn:hover {
+            background: rgba(8, 16, 28, 0.85);
+            color: #ffffff;
+            border-color: #7dd3fc;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+        body.zen-hide-all #restore-ui-btn {
+            display: block;
+        }
+
+        /* Thông báo nhỏ góc màn hình khi câu được cá trong chế độ Ẩn Tất Cả */
+        #zen-toast {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            z-index: 45;
+            background: rgba(8, 16, 28, 0.65);
+            border: 1px solid rgba(125, 211, 252, 0.3);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #f1f5f9;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        #zen-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* HUD Left */
+        #top-left {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .glass-box {
+            background: rgba(8, 16, 28, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 16px;
+            padding: 14px 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            min-width: 325px;
+            transition: all 0.25s ease;
+        }
+        .title-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 8px;
+        }
+        .glass-box.collapsed #panel-body {
+            display: none;
+        }
+        .glass-box.collapsed .title-bar {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .title-bar h1 {
+            font-size: 15px;
+            font-weight: 800;
+            color: #f1f5f9;
+            white-space: nowrap;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .badge {
+            font-size: 11px;
+            background: rgba(56, 189, 248, 0.2);
+            color: #7dd3fc;
+            border: 1px solid rgba(125, 211, 252, 0.35);
+            padding: 3px 9px;
+            border-radius: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .mini-icon-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .mini-icon-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            border-color: #7dd3fc;
+            color: #ffffff;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+        .stat-cell {
+            background: rgba(255, 255, 255, 0.06);
+            padding: 7px 8px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-cell .lbl {
+            font-size: 10px;
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .stat-cell .val {
+            font-size: 14.5px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .section-lbl {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .atmo-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .atmo-btn {
+            padding: 6px 4px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .atmo-btn.active, .atmo-btn:hover {
+            background: rgba(56, 189, 248, 0.28);
+            color: #ffffff;
+            border-color: #7dd3fc;
+        }
+
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .ui-btn {
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            background: rgba(251, 191, 36, 0.15);
+            color: #fde68a;
+            font-weight: 700;
+            font-size: 11.5px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .ui-btn:hover {
+            background: rgba(251, 191, 36, 0.3);
+        }
+        .ui-btn.sec {
+            border-color: rgba(125, 211, 252, 0.35);
+            background: rgba(56, 189, 248, 0.14);
+            color: #bae6fd;
+        }
+        .ui-btn.sec:hover {
+            background: rgba(56, 189, 248, 0.28);
+        }
+        .ui-btn.aqua {
+            grid-column: span 2;
+            border-color: rgba(52, 211, 153, 0.45);
+            background: rgba(16, 185, 129, 0.18);
+            color: #6ee7b7;
+        }
+        .ui-btn.aqua:hover {
+            background: rgba(16, 185, 129, 0.32);
+        }
+        .ui-btn.hide-all {
+            grid-column: span 2;
+            border-color: rgba(167, 139, 250, 0.45);
+            background: rgba(139, 92, 246, 0.18);
+            color: #ddd6fe;
+        }
+        .ui-btn.hide-all:hover {
+            background: rgba(139, 92, 246, 0.35);
+        }
+
+        /* Top Right */
+        #top-right {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            align-items: flex-end;
+        }
+        .pill {
+            background: rgba(8, 16, 28, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #f1f5f9;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .pill.active {
+            border-color: #34d399;
+            color: #6ee7b7;
+            background: rgba(16, 185, 129, 0.22);
+        }
+        .pill.zen-btn {
+            border-color: #a78bfa;
+            color: #ddd6fe;
+            background: rgba(139, 92, 246, 0.22);
+        }
+        .pill:hover {
+            transform: scale(1.03);
+        }
+
+        /* Bottom Center Fishing Status */
+        #bottom-hud {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(8, 16, 28, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 13px 28px;
+            border-radius: 26px;
+            text-align: center;
+            min-width: 440px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+        }
+        body.zen-hide-all #bottom-hud {
+            transform: translateX(-50%) translateY(20px);
+        }
+        #hint-main {
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        #hint-sub {
+            font-size: 11.5px;
+            color: #cbd5e1;
+            margin-top: 3px;
+        }
+        #tension-box {
+            display: none;
+            margin-top: 10px;
+        }
+        .tension-bar-bg {
+            width: 360px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        #tension-fill {
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg, #38bdf8, #34d399, #fbbf24);
+            transition: width 0.05s linear;
+        }
+
+        /* 3D Fish Inspection Modal */
+        #fish-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.92);
+            background: rgba(8, 16, 28, 0.94);
+            border: 1.5px solid rgba(125, 211, 252, 0.35);
+            border-radius: 22px;
+            padding: 24px 30px;
+            text-align: center;
+            z-index: 30;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.85);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s ease;
+            min-width: 410px;
+        }
+        #fish-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #specimen-canvas {
+            margin: 8px auto;
+            display: block;
+            filter: drop-shadow(0 12px 18px rgba(0,0,0,0.65));
+        }
+        .modal-btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+        .keep-btn {
+            padding: 10px 22px;
+            border-radius: 18px;
+            border: none;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            color: #040810;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .keep-btn.tank {
+            background: linear-gradient(90deg, #34d399, #10b981);
+        }
+        .keep-btn:hover {
+            transform: scale(1.04);
+        }
+
+        /* Journal & Aquarium Modals */
+        .overlay-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 780px;
+            max-width: 94vw;
+            max-height: 84vh;
+            overflow-y: auto;
+            background: rgba(8, 16, 28, 0.96);
+            border: 1.5px solid rgba(255, 255, 255, 0.22);
+            border-radius: 22px;
+            padding: 22px;
+            z-index: 35;
+            display: none;
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.9);
+        }
+        .dex-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+        .dex-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px;
+            text-align: center;
+        }
+        .dex-card.unlocked {
+            border-color: rgba(56, 189, 248, 0.45);
+            background: rgba(56, 189, 248, 0.08);
+        }
+        #aquarium-canvas {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(180deg, #072238 0%, #03101c 100%);
+            border-radius: 14px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            margin-top: 12px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="glCanvas"></canvas>
+<canvas id="uiCanvas"></canvas>
+
+<!-- Nút nhỏ góc phải chỉ hiện khi đã Ẩn Toàn Bộ UI -->
+<button id="restore-ui-btn" onclick="toggleHideAllUI()">👁️ Hiện Giao Diện [Phím H]</button>
+
+<!-- Thông báo nổi nhẹ nhàng khi câu được cá lúc đang Ẩn UI -->
+<div id="zen-toast">🐟 Đã câu được Cá Hồi Vân (+$85)</div>
+
+<div id="top-left" class="ui-element">
+    <div class="glass-box" id="left-panel">
+        <div class="title-bar">
+            <h1>🌲 Hồ Bắc Âu 3D</h1>
+            <div class="header-actions">
+                <span class="badge" id="rod-name-el">Cần Sồi Lv.2</span>
+                <button class="mini-icon-btn" id="collapse-panel-btn" title="Thu gọn / Mở rộng bảng này">– Thu gọn</button>
+            </div>
+        </div>
+
+        <div id="panel-body">
+            <div class="stats-grid">
+                <div class="stat-cell">
+                    <span class="lbl">Ngân Quỹ</span>
+                    <span class="val" style="color:#fde68a">$<span id="money-el">1,145</span></span>
+                </div>
+                <div class="stat-cell">
+                    <span class="lbl">Đã Câu</span>
+                    <span class="val" style="color:#7dd3fc"><span id="count-el">7</span> con</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="lbl">Sổ Sinh Học</span>
+                    <span class="val" style="color:#6ee7b7"><span id="dex-el">4/8</span></span>
+                </div>
+            </div>
+
+            <div class="section-lbl">KHUNG GIỜ & KHÍ QUYỂN 3D:</div>
+            <div class="atmo-row">
+                <button class="atmo-btn" onclick="setAtmosphere(0, this)">🌅 Hoàng Hôn</button>
+                <button class="atmo-btn" onclick="setAtmosphere(1, this)">☀️ Trưa Nắng</button>
+                <button class="atmo-btn" onclick="setAtmosphere(2, this)">🌫️ Sương Sớm</button>
+                <button class="atmo-btn active" onclick="setAtmosphere(3, this)">🌌 Cực Quang</button>
+            </div>
+
+            <div class="section-lbl">CHỌN MỒI CÂU (TĂNG TỶ LỆ CÁ TO):</div>
+            <div class="atmo-row">
+                <button class="atmo-btn" onclick="setBait(0, this)">🪱 Giun Đất</button>
+                <button class="atmo-btn" onclick="setBait(1, this)">🦐 Tôm Suối</button>
+                <button class="atmo-btn" onclick="setBait(2, this)">🦗 Châu Chấu</button>
+                <button class="atmo-btn active" onclick="setBait(3, this)">✨ Mồi Lure</button>
+            </div>
+
+            <div class="btn-row">
+                <button class="ui-btn" id="upgrade-btn">🎣 Nâng Cần ($100)</button>
+                <button class="ui-btn sec" id="open-dex-btn">📖 Sổ Tay Cá</button>
+                <button class="ui-btn aqua" id="open-aqua-btn">🐠 Ngắm Bể Cá Cảnh Thực Tế Của Bạn (<span id="tank-count">1</span> con)</button>
+                <button class="ui-btn hide-all" onclick="toggleHideAllUI()">👁️ Ẩn Toàn Bộ Giao Diện Để Chill [Phím H]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="top-right" class="ui-element">
+    <button class="pill zen-btn" onclick="toggleHideAllUI()">👁️ Ẩn All UI (Chế Độ Chill) [H]</button>
+    <button class="pill" id="afk-btn">🤖 Tự Động Câu Chill (AFK) [A]: TẮT</button>
+    <button class="pill active" id="sound-btn">🎧 Nhạc Guitar & Tiếng Nước [M]: BẬT</button>
+    <button class="pill active" id="res-btn">⚡ Đồ Họa: Siêu Mượt (60 FPS)</button>
+</div>
+
+<div id="bottom-hud" class="ui-element">
+    <div id="hint-main">Nhấn [SPACE] hoặc [Chuột Trái] để Quăng Cần Câu</div>
+    <div id="hint-sub">Dùng W, A, S, D chèo thuyền • Kéo chuột xoay góc nhìn 360° • Nhấn [H] để ẩn toàn bộ chữ</div>
+    <div id="tension-box">
+        <div class="tension-bar-bg">
+            <div id="tension-fill"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Khoe Cá Vảy Ánh Kim 3D -->
+<div id="fish-modal">
+    <div id="m-rarity" style="font-size:11px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:#7dd3fc;">LOÀI QUÝ HIẾM</div>
+    <div id="m-name" style="font-size:23px; font-weight:800; color:#ffffff; margin-top:4px;">Cá Hồi Đại Tây Dương</div>
+    <canvas id="specimen-canvas" width="320" height="145"></canvas>
+    <div id="m-desc" style="font-size:13.5px; color:#cbd5e1; line-height:1.6;">
+        Chiều dài: <b>64 cm</b> &bull; Cân nặng: <b>4.25 kg</b><br>
+        Giá trị thu mua: <b style="color:#fde68a">+$95</b>
+    </div>
+    <div class="modal-btn-group">
+        <button class="keep-btn" id="sell-btn">💰 Bán Lấy Tiền [Space]</button>
+        <button class="keep-btn tank" id="tank-btn">🐠 Thả Vào Bể Cá Cảnh</button>
+    </div>
+</div>
+
+<!-- Sổ Tay Cá -->
+<div id="dex-modal" class="overlay-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.12); padding-bottom:10px;">
+        <h2 style="font-size:18px; color:#f8fafc;">📖 Bộ Sưu Tập Cá Nước Lạnh Chân Thật</h2>
+        <button onclick="document.getElementById('dex-modal').style.display='none'" style="background:rgba(255,255,255,0.15); border:none; color:#fff; padding:6px 14px; border-radius:8px; cursor:pointer; font-weight:700;">Đóng [X]</button>
+    </div>
+    <div class="dex-grid" id="dex-grid"></div>
+</div>
+
+<!-- Bể Cá Cảnh Cá Nhân (Zen Aquarium) -->
+<div id="aqua-modal" class="overlay-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.12); padding-bottom:10px;">
+        <div>
+            <h2 style="font-size:18px; color:#6ee7b7;">🐠 Bể Cá Cảnh Thủy Sinh Của Bạn</h2>
+            <p style="font-size:12px; color:#94a3b8; margin-top:2px;">Click vào mặt nước trong bể để rải thức ăn cho đàn cá bạn đã câu được!</p>
+        </div>
+        <button onclick="closeAquarium()" style="background:rgba(255,255,255,0.15); border:none; color:#fff; padding:6px 14px; border-radius:8px; cursor:pointer; font-weight:700;">Quay Lại Hồ Câu [X]</button>
+    </div>
+    <canvas id="aquarium-canvas" width="730" height="400"></canvas>
+</div>
+
+<script>
+// ============================================================================
+// PHẦN 1: WEBGL SHADER SIÊU TỐI ƯU 60FPS
+// ============================================================================
+const glCanvas = document.getElementById('glCanvas');
+const gl = glCanvas.getContext('webgl', { powerPreference: 'high-performance', antialias: false, depth: false });
+
+const vsSource = `
+    attribute vec2 aPos;
+    void main() {
+        gl_Position = vec4(aPos, 0.0, 1.0);
+    }
+`;
+
+const fsSource = `
+    precision mediump float;
+    uniform vec2 uRes;
+    uniform float uTime;
+    uniform vec2 uCamRot;
+    uniform vec2 uBoatPos;
+    uniform vec3 uBobber;
+    uniform float uBiteRip;
+    uniform int uMood;
+
+    vec3 getWaveAndNormal(vec2 p) {
+        float t = uTime;
+        float p1 = p.x * 1.3 + t * 1.5;
+        float p2 = p.y * 1.1 - t * 1.2;
+        float p3 = (p.x + p.y) * 2.4 + t * 2.1;
+        float p4 = (p.x - p.y * 0.8) * 4.2 - t * 2.8;
+
+        float dhx = 0.04 * cos(p1) * cos(p2) + 0.025 * cos(p3) + 0.012 * cos(p4);
+        float dhz = -0.035 * sin(p1) * sin(p2) + 0.025 * cos(p3) - 0.01 * cos(p4);
+
+        vec2 dBob = p - uBobber.xz;
+        float r = length(dBob) + 0.001;
+        if (r < 6.0 && uBiteRip > 0.01) {
+            float rip = cos(r * 12.0 - t * 10.0) * exp(-r * 0.7) * 0.08 * uBiteRip;
+            dhx += rip * (dBob.x / r);
+            dhz += rip * (dBob.y / r);
+        }
+
+        return normalize(vec3(-dhx, 1.0, -dhz));
+    }
+
+    float mountainProfile(float az) {
+        return (sin(az * 3.0 + 1.2) * 0.5 + 0.5) * 0.09
+             + (sin(az * 7.0 - 0.5) * 0.5 + 0.5) * 0.05
+             + (cos(az * 17.0) * 0.5 + 0.5) * 0.02 + 0.012;
+    }
+
+    vec3 renderSky(vec3 rd, vec3 sunDir) {
+        float sunAmt = max(dot(rd, sunDir), 0.0);
+        vec3 skyTop, skyHor, sunCol;
+
+        if (uMood == 0) {
+            skyTop = vec3(0.07, 0.13, 0.26);
+            skyHor = vec3(0.86, 0.43, 0.22);
+            sunCol = vec3(1.0, 0.80, 0.45);
+        } else if (uMood == 1) {
+            skyTop = vec3(0.08, 0.36, 0.72);
+            skyHor = vec3(0.58, 0.80, 0.96);
+            sunCol = vec3(1.0, 0.96, 0.86);
+        } else if (uMood == 2) {
+            skyTop = vec3(0.28, 0.38, 0.48);
+            skyHor = vec3(0.74, 0.80, 0.84);
+            sunCol = vec3(0.95, 0.92, 0.85);
+        } else {
+            skyTop = vec3(0.01, 0.03, 0.08);
+            skyHor = vec3(0.05, 0.14, 0.24);
+            sunCol = vec3(0.75, 0.88, 1.0);
+        }
+
+        vec3 col = mix(skyHor, skyTop, pow(clamp(rd.y, 0.0, 1.0), 0.55));
+        col += sunCol * pow(sunAmt, 12.0) * 0.5;
+        col += vec3(1.0, 0.95, 0.85) * smoothstep(0.9985, 0.9998, sunAmt);
+
+        if (uMood == 3 && rd.y > 0.02) {
+            float au = sin(rd.x * 6.0 + uTime * 0.5 + sin(rd.z * 4.0)) * 0.5 + 0.5;
+            au *= smoothstep(0.02, 0.22, rd.y) * smoothstep(0.6, 0.15, rd.y);
+            col += vec3(0.05, 0.85, 0.55) * au * 0.45;
+        }
+
+        float az = atan(rd.x, rd.z) + uBoatPos.x * 0.002;
+        float mh = mountainProfile(az);
+        if (rd.y < mh && rd.y > -0.02) {
+            float snow = smoothstep(0.10, 0.14, rd.y + sin(az * 35.0) * 0.008);
+            vec3 rock = uMood == 0 ? vec3(0.16, 0.11, 0.20) : vec3(0.11, 0.17, 0.25);
+            vec3 mCol = mix(rock, vec3(0.88, 0.92, 0.96), snow * 0.7);
+            float treeLine = (sin(az * 90.0) * 0.5 + 0.5) * 0.018 + 0.022;
+            if (rd.y < treeLine) {
+                mCol = uMood == 0 ? vec3(0.07, 0.08, 0.12) : vec3(0.05, 0.13, 0.11);
+            }
+            col = mix(mCol, skyHor, smoothstep(mh, 0.0, rd.y) * 0.45);
+        }
+
+        return col;
+    }
+
+    void main() {
+        vec2 uv = (gl_FragCoord.xy - 0.5 * uRes.xy) / uRes.y;
+        vec3 ro = vec3(uBoatPos.x, 2.1, uBoatPos.y + 4.5);
+        float yaw = uCamRot.x, pitch = uCamRot.y;
+
+        vec3 fwd = normalize(vec3(sin(yaw) * cos(pitch), sin(pitch), -cos(yaw) * cos(pitch)));
+        vec3 rgt = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));
+        vec3 up = cross(rgt, fwd);
+        vec3 rd = normalize(fwd + uv.x * rgt + uv.y * up);
+
+        vec3 sunDir = normalize(vec3(0.0, 0.18, -1.0));
+        if (uMood == 1) sunDir = normalize(vec3(0.25, 0.52, -0.8));
+        else if (uMood == 2) sunDir = normalize(vec3(-0.25, 0.12, -1.0));
+
+        vec3 col = renderSky(rd, sunDir);
+
+        if (rd.y < -0.001) {
+            float t = -2.1 / rd.y;
+            vec3 hitPos = ro + rd * t;
+            vec3 N = getWaveAndNormal(hitPos.xz);
+
+            float fresnel = pow(1.0 - max(dot(-rd, N), 0.0), 3.5);
+            fresnel = clamp(fresnel * 0.82 + 0.14, 0.0, 1.0);
+
+            vec3 reflDir = reflect(rd, N);
+            reflDir.y = max(0.01, reflDir.y);
+            vec3 reflCol = renderSky(reflDir, sunDir);
+
+            vec3 deepWater = uMood == 1 ? vec3(0.02, 0.18, 0.25) : vec3(0.01, 0.07, 0.12);
+            vec3 shallowWater = vec3(0.04, 0.28, 0.30);
+            vec3 refrCol = mix(deepWater, shallowWater, exp(-t * 0.05));
+
+            vec3 waterCol = mix(refrCol, reflCol, fresnel);
+
+            vec3 H = normalize(sunDir - rd);
+            float spec = pow(max(dot(N, H), 0.0), 160.0);
+            waterCol += vec3(1.0, 0.9, 0.7) * spec * 1.8;
+
+            float mist = 1.0 - exp(-t * 0.012);
+            vec3 horCol = renderSky(normalize(vec3(rd.x, 0.01, rd.z)), sunDir);
+            col = mix(waterCol, horCol, clamp(mist, 0.0, 1.0));
+        }
+
+        col = col / (1.0 + col * 0.22);
+        gl_FragColor = vec4(col, 1.0);
+    }
+`;
+
+function compileShader(type, source) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vsSource));
+gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fsSource));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const quadBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+
+const aPosLoc = gl.getAttribLocation(prog, 'aPos');
+gl.enableVertexAttribArray(aPosLoc);
+gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, false, 0, 0);
+
+const uResLoc = gl.getUniformLocation(prog, 'uRes');
+const uTimeLoc = gl.getUniformLocation(prog, 'uTime');
+const uCamRotLoc = gl.getUniformLocation(prog, 'uCamRot');
+const uBoatPosLoc = gl.getUniformLocation(prog, 'uBoatPos');
+const uBobberLoc = gl.getUniformLocation(prog, 'uBobber');
+const uBiteRipLoc = gl.getUniformLocation(prog, 'uBiteRip');
+const uMoodLoc = gl.getUniformLocation(prog, 'uMood');
+
+// ============================================================================
+// PHẦN 2: DỮ LIỆU 8 LOÀI CÁ & HÀM VẼ GIẢI PHẪU CÁ CHÂN THẬT
+// ============================================================================
+const FISH_SPECIES = [
+    { id: 0, name: 'Cá Hồi Suối Bắc Âu', rarity: 'Phổ Biến', backCol: '#1e3f20', midCol: '#4a7c59', bellyCol: '#f3e8ee', finCol: '#c85a32', spotCol: '#f4d35e', price: 35, minW: 0.9, maxW: 3.4, minL: 32, maxL: 54, fatness: 0.27 },
+    { id: 1, name: 'Cá Rô Vàng Sọc Đen', rarity: 'Phổ Biến', backCol: '#3b4d1f', midCol: '#d4a338', bellyCol: '#fdfcdc', finCol: '#e05a47', bars: 6, price: 28, minW: 0.5, maxW: 2.2, minL: 24, maxL: 40, fatness: 0.33 },
+    { id: 2, name: 'Cá Chép Đồng Vảy Óng', rarity: 'Phổ Biến', backCol: '#4a3520', midCol: '#b8860b', bellyCol: '#fae588', finCol: '#8b4513', price: 45, minW: 2.0, maxW: 7.5, minL: 42, maxL: 75, fatness: 0.36 },
+    { id: 3, name: 'Cá Hồi Vân Ánh Hồng', rarity: 'Hiếm', backCol: '#244c3c', midCol: '#709775', bellyCol: '#e9ecef', finCol: '#d99b82', pinkStripe: '#ff758f', speckled: true, price: 85, minW: 2.2, maxW: 8.0, minL: 45, maxL: 78, fatness: 0.26 },
+    { id: 4, name: 'Cá Vược Đá Miệng Rộng', rarity: 'Hiếm', backCol: '#1b3019', midCol: '#4f6d3a', bellyCol: '#dce1cc', finCol: '#2f3e28', price: 95, minW: 2.5, maxW: 9.2, minL: 44, maxL: 74, fatness: 0.35 },
+    { id: 5, name: 'Cá Chó Săn Mồi Bắc Cực', rarity: 'Cực Hiếm', backCol: '#1f3622', midCol: '#3c5a35', bellyCol: '#e2ece9', finCol: '#9e472a', spotCol: '#e9edc9', price: 165, minW: 4.5, maxW: 16.5, minL: 68, maxL: 118, fatness: 0.20 },
+    { id: 6, name: 'Cá Koi Kohaku Nghệ Nhân', rarity: 'Cực Hiếm', backCol: '#f8fafc', midCol: '#ffffff', bellyCol: '#f1f5f9', finCol: '#ffffff', koiPatches: '#d90429', price: 240, minW: 3.8, maxW: 11.5, minL: 55, maxL: 88, fatness: 0.34 },
+    { id: 7, name: 'Cá Hồi Đại Tây Dương Vua', rarity: 'Huyền Thoại', backCol: '#102542', midCol: '#6c8ead', bellyCol: '#f8f9fa', finCol: '#3d5a80', pinkStripe: '#e07a5f', speckled: true, price: 480, minW: 12.0, maxW: 36.0, minL: 85, maxL: 145, fatness: 0.28 }
+];
+
+const ROD_TIERS = ['Cần Trúc Lv.1', 'Cần Sồi Lv.2', 'Cần Thủy Tinh Lv.3', 'Cần Carbon Lv.4', 'Cần Shimano Lv.5'];
+
+function renderRealisticFishSpecimen(ctx2d, sp, lengthPx, swimTime = 0.0, detailedScales = true) {
+    ctx2d.save();
+    const L = lengthPx;
+    const H = L * sp.fatness;
+    const wag = Math.sin(swimTime) * (L * 0.045);
+
+    ctx2d.fillStyle = sp.finCol;
+    ctx2d.beginPath();
+    ctx2d.moveTo(L * 0.05, -H * 0.44);
+    ctx2d.quadraticCurveTo(-L * 0.06, -H * 0.88, -L * 0.20, -H * 0.70);
+    ctx2d.lineTo(-L * 0.24, -H * 0.36);
+    ctx2d.closePath();
+    ctx2d.fill();
+
+    const tailX = -L * 0.45;
+    ctx2d.beginPath();
+    ctx2d.moveTo(tailX, -H * 0.16);
+    ctx2d.quadraticCurveTo(tailX - L * 0.14, -H * 0.55, tailX - L * 0.27, -H * 0.62 + wag);
+    ctx2d.quadraticCurveTo(tailX - L * 0.16, wag * 0.5, tailX - L * 0.27, H * 0.62 + wag);
+    ctx2d.quadraticCurveTo(tailX - L * 0.14, H * 0.55, tailX, H * 0.16);
+    ctx2d.closePath();
+    ctx2d.fill();
+
+    ctx2d.beginPath();
+    ctx2d.moveTo(-L * 0.05, H * 0.44);
+    ctx2d.quadraticCurveTo(-L * 0.12, H * 0.76, -L * 0.19, H * 0.64);
+    ctx2d.lineTo(-L * 0.16, H * 0.38);
+    ctx2d.fill();
+
+    const bodyGrad = ctx2d.createLinearGradient(0, -H * 0.6, 0, H * 0.6);
+    bodyGrad.addColorStop(0.0, sp.backCol);
+    bodyGrad.addColorStop(0.42, sp.midCol);
+    bodyGrad.addColorStop(0.82, sp.bellyCol);
+    bodyGrad.addColorStop(1.0, '#cbd5e1');
+
+    ctx2d.fillStyle = bodyGrad;
+    ctx2d.beginPath();
+    ctx2d.moveTo(L * 0.48, 0);
+    ctx2d.bezierCurveTo(L * 0.28, -H * 0.62, -L * 0.12, -H * 0.58, tailX, -H * 0.14 + wag * 0.4);
+    ctx2d.lineTo(tailX, H * 0.14 + wag * 0.4);
+    ctx2d.bezierCurveTo(-L * 0.12, H * 0.58, L * 0.28, H * 0.62, L * 0.48, 0);
+    ctx2d.closePath();
+    ctx2d.fill();
+
+    ctx2d.save();
+    ctx2d.clip();
+
+    if (sp.pinkStripe) {
+        ctx2d.fillStyle = sp.pinkStripe;
+        ctx2d.fillRect(-L * 0.5, -H * 0.14, L, H * 0.28);
+    }
+    if (sp.bars) {
+        ctx2d.fillStyle = 'rgba(20, 30, 15, 0.42)';
+        for (let b = 0; b < sp.bars; b++) {
+            const bx = L * 0.22 - b * (L * 0.10);
+            ctx2d.fillRect(bx, -H * 0.6, L * 0.035, H * 0.85);
+        }
+    }
+    if (sp.koiPatches) {
+        ctx2d.fillStyle = sp.koiPatches;
+        ctx2d.beginPath();
+        ctx2d.arc(L * 0.18, -H * 0.18, H * 0.38, 0, Math.PI * 2);
+        ctx2d.arc(-L * 0.12, -H * 0.05, H * 0.34, 0, Math.PI * 2);
+        ctx2d.fill();
+    }
+
+    if (detailedScales) {
+        ctx2d.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx2d.lineWidth = 0.9;
+        const stepX = L * 0.055;
+        const stepY = H * 0.16;
+        for (let x = -L * 0.38; x < L * 0.25; x += stepX) {
+            for (let y = -H * 0.40; y < H * 0.40; y += stepY) {
+                ctx2d.beginPath();
+                ctx2d.arc(x, y, stepY * 0.55, -Math.PI * 0.4, Math.PI * 0.4);
+                ctx2d.stroke();
+            }
+        }
+    }
+    ctx2d.restore();
+
+    ctx2d.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx2d.lineWidth = Math.max(1.2, L * 0.012);
+    ctx2d.beginPath();
+    ctx2d.arc(L * 0.24, 0, H * 0.38, Math.PI * 0.72, Math.PI * 1.28);
+    ctx2d.stroke();
+
+    ctx2d.fillStyle = sp.finCol + 'cc';
+    ctx2d.beginPath();
+    ctx2d.moveTo(L * 0.18, H * 0.16);
+    ctx2d.quadraticCurveTo(L * 0.05, H * 0.44, L * 0.01, H * 0.30);
+    ctx2d.closePath();
+    ctx2d.fill();
+
+    const eyeX = L * 0.35, eyeY = -H * 0.12, eyeR = Math.max(2.5, L * 0.032);
+    ctx2d.fillStyle = '#eab308';
+    ctx2d.beginPath(); ctx2d.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2); ctx2d.fill();
+    ctx2d.fillStyle = '#090d16';
+    ctx2d.beginPath(); ctx2d.arc(eyeX, eyeY, eyeR * 0.65, 0, Math.PI * 2); ctx2d.fill();
+    ctx2d.fillStyle = '#ffffff';
+    ctx2d.beginPath(); ctx2d.arc(eyeX - eyeR * 0.25, eyeY - eyeR * 0.25, eyeR * 0.25, 0, Math.PI * 2); ctx2d.fill();
+
+    ctx2d.restore();
+}
+
+// ============================================================================
+// PHẦN 3: ÂM THANH GUITAR ACOUSTIC & TIẾNG NƯỚC
+// ============================================================================
+class AcousticNatureAudio {
+    constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.chordIdx = 0;
+    }
+    init() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+            this.startGentleGuitar();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    startGentleGuitar() {
+        const chords = [
+            [146.83, 220.00, 293.66, 369.99],
+            [164.81, 246.94, 329.63, 392.00],
+            [130.81, 196.00, 246.94, 329.63],
+            [196.00, 246.94, 293.66, 392.00]
+        ];
+        const loop = () => {
+            if (this.enabled && this.ctx && this.ctx.state === 'running') {
+                const now = this.ctx.currentTime;
+                const c = chords[this.chordIdx % chords.length];
+                this.chordIdx++;
+                c.forEach((f, i) => {
+                    const t = now + i * 0.52;
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, t);
+                    g.gain.setValueAtTime(0.001, t);
+                    g.gain.linearRampToValueAtTime(0.022, t + 0.03);
+                    g.gain.exponentialRampToValueAtTime(0.0005, t + 2.2);
+                    osc.connect(g);
+                    g.connect(this.ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + 2.25);
+                });
+            }
+            setTimeout(loop, 3600);
+        };
+        loop();
+    }
+    plop(heavy = false) {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(heavy ? 160 : 310, now);
+        osc.frequency.exponentialRampToValueAtTime(heavy ? 480 : 640, now + 0.09);
+        g.gain.setValueAtTime(heavy ? 0.16 : 0.10, now);
+        g.gain.exponentialRampToValueAtTime(0.005, now + 0.14);
+        osc.connect(g);
+        g.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    }
+    reelClick() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(920, now);
+        g.gain.setValueAtTime(0.04, now);
+        g.gain.exponentialRampToValueAtTime(0.002, now + 0.025);
+        osc.connect(g);
+        g.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.03);
+    }
+}
+
+const sound = new AcousticNatureAudio();
+
+// ============================================================================
+// PHẦN 4: CHẾ ĐỘ ẨN UI (HIDE PANEL & HIDE ALL ZEN MODE) + TIẾN TRÌNH NGƯỜI CHƠI
+// ============================================================================
+const uiCanvas = document.getElementById('uiCanvas');
+const uiCtx = uiCanvas.getContext('2d');
+
+let renderScale = 0.55;
+function resizeAll() {
+    glCanvas.width = Math.floor(window.innerWidth * renderScale);
+    glCanvas.height = Math.floor(window.innerHeight * renderScale);
+    uiCanvas.width = window.innerWidth;
+    uiCanvas.height = window.innerHeight;
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+}
+window.addEventListener('resize', resizeAll);
+resizeAll();
+
+let camYaw = 0.0, camPitch = -0.10;
+let isDraggingLook = false, lastMouseX = 0, lastMouseY = 0;
+
+// Khởi tạo sẵn đúng tiến trình của bạn (Ngân quỹ $1,145, Đã câu 7 con, Cần Sồi Lv.2, Sổ 4/8, Cực Quang, Mồi Lure, 1 cá trong bể)
+let currentMood = 3;
+let currentBait = 3;
+let autoFish = false;
+let isAllUIHidden = false;
+let keys = {};
+
+const boatPos = { x: 0.0, y: 0.0 };
+let money = 1145;
+let totalCaught = 7;
+let rodLevel = 2;
+let unlockedDex = new Set([0, 1, 3, 6]);
+let myAquariumFish = [
+    {
+        sp: FISH_SPECIES[6],
+        w: 5.4,
+        x: 320,
+        y: 180,
+        vx: 1.3,
+        vy: 0.2,
+        phase: 0.0
+    }
+];
+let aquariumFood = [];
+
+// Nút Thu gọn riêng bảng bên trái
+const leftPanel = document.getElementById('left-panel');
+const collapseBtn = document.getElementById('collapse-panel-btn');
+collapseBtn.addEventListener('click', () => {
+    const isCollapsed = leftPanel.classList.toggle('collapsed');
+    collapseBtn.innerText = isCollapsed ? '+ Mở rộng' : '– Thu gọn';
+});
+
+// Hàm Ẩn / Hiện Toàn Bộ Giao Diện (Zen Chill Mode)
+function toggleHideAllUI() {
+    isAllUIHidden = !isAllUIHidden;
+    document.body.classList.toggle('zen-hide-all', isAllUIHidden);
+    if (isAllUIHidden) {
+        showZenToast('✨ Đã ẩn toàn bộ giao diện. Nhấn phím [H] hoặc nút góc phải để hiện lại');
+    }
+}
+
+let toastTimer = null;
+function showZenToast(msg) {
+    const t = document.getElementById('zen-toast');
+    t.innerHTML = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+let state = 'idle'; // 'idle' | 'flying' | 'floating' | 'biting' | 'reeling' | 'modal'
+let stateTimer = 0, tensionProgress = 30, hookedSpecies = null, biteRip = 0.0;
+let reelHandleAngle = 0.0;
+const bobber3D = { x: 0, y: 0, z: -8, vx: 0, vy: 0, vz: 0 };
+
+let underwaterFish = [];
+for (let i = 0; i < 10; i++) {
+    underwaterFish.push({
+        x: (Math.random() - 0.5) * 18,
+        z: -4 - Math.random() * 16,
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.025 + Math.random() * 0.02,
+        phase: Math.random() * Math.PI * 2,
+        sp: FISH_SPECIES[i % FISH_SPECIES.length]
+    });
+}
+
+function projectWorldToScreen(wx, wy, wz) {
+    const ro = { x: boatPos.x, y: 2.1, z: boatPos.y + 4.5 };
+    const dx = wx - ro.x, dy = wy - ro.y, dz = wz - ro.z;
+    const cy = Math.cos(camYaw), sy = Math.sin(camYaw);
+    const cp = Math.cos(camPitch), sp = Math.sin(camPitch);
+
+    const camZ = dx * sy * cp + dy * sp - dz * cy * cp;
+    if (camZ <= 0.1) return null;
+    const camX = dx * cy + dz * sy;
+    const camY = -dx * sy * sp + dy * cp + dz * cy * sp;
+
+    return {
+        x: (camX / camZ) * uiCanvas.height + 0.5 * uiCanvas.width,
+        y: 0.5 * uiCanvas.height - (camY / camZ) * uiCanvas.height,
+        scale: uiCanvas.height / camZ
+    };
+}
+
+const hintMain = document.getElementById('hint-main');
+const hintSub = document.getElementById('hint-sub');
+const tensionBox = document.getElementById('tension-box');
+const tensionFill = document.getElementById('tension-fill');
+
+function castRod() {
+    sound.init();
+    sound.plop(false);
+    state = 'flying';
+    biteRip = 0.0;
+
+    bobber3D.x = boatPos.x + Math.sin(camYaw) * 1.5;
+    bobber3D.y = 2.0;
+    bobber3D.z = boatPos.y + 4.5 - Math.cos(camYaw) * 1.5;
+
+    const spd = 0.36 + rodLevel * 0.035;
+    bobber3D.vx = Math.sin(camYaw) * spd;
+    bobber3D.vy = 0.15;
+    bobber3D.vz = -Math.cos(camYaw) * spd;
+
+    hintMain.innerText = '🎣 Đang vung cần... Phao gỗ đang bay ra mặt hồ';
+    hintSub.innerText = 'Quan sát bóng cá dưới làn nước bơi lại gần phao';
+    tensionBox.style.display = 'none';
+}
+
+function triggerBite() {
+    state = 'biting';
+    stateTimer = 120;
+    biteRip = 1.8;
+    sound.plop(true);
+
+    const maxIdx = Math.min(FISH_SPECIES.length - 1, 1 + rodLevel + currentBait);
+    const minIdx = Math.min(maxIdx, Math.floor(currentBait * 0.8));
+    const idx = minIdx + Math.floor(Math.random() * (maxIdx - minIdx + 1));
+    hookedSpecies = FISH_SPECIES[Math.min(FISH_SPECIES.length - 1, idx)];
+
+    hintMain.innerHTML = '❗️ <span style="color:#fde68a">Phao chìm mạnh! Cá đã đớp mồi!</span> Nhấn [SPACE] hoặc [Chuột] để Giật Cần!';
+    hintSub.innerText = 'Giật cần ngay trước khi cá nhả mồi';
+
+    if (autoFish) {
+        setTimeout(() => { if (state === 'biting') startReeling(); }, 250);
+    }
+}
+
+function startReeling() {
+    state = 'reeling';
+    tensionProgress = 35;
+    biteRip = 2.4;
+    tensionBox.style.display = 'block';
+    hintMain.innerHTML = '🐟 <span style="color:#7dd3fc">Đang cuốn máy câu dòng cá!</span> Nhấp [SPACE] hoặc [Chuột] đều tay!';
+    hintSub.innerText = `Một chú ${hookedSpecies.name} đang quẫy mạnh dưới mặt hồ!`;
+}
+
+let lastCaughtRecord = null;
+
+function completeCatch() {
+    tensionBox.style.display = 'none';
+    biteRip = 0.2;
+    sound.plop(true);
+
+    const sp = hookedSpecies || FISH_SPECIES[0];
+    const w = (sp.minW + Math.random() * (sp.maxW - sp.minW)).toFixed(2);
+    const l = Math.round(sp.minL + Math.random() * (sp.maxL - sp.minL));
+    const r = Math.round(sp.price * (1.0 + currentBait * 0.2) * (0.9 + Math.random() * 0.25));
+
+    lastCaughtRecord = { sp, w, l, r };
+    totalCaught++;
+    unlockedDex.add(sp.id);
+
+    // Nếu đang ở chế độ Ẩn Toàn Bộ UI (Pure Chill Mode) -> Tự động bán + thả vào bể và chỉ hiện dòng thông báo nhỏ để không làm phiền!
+    if (isAllUIHidden) {
+        money += r;
+        if (myAquariumFish.length < 15) {
+            myAquariumFish.push({
+                sp, w,
+                x: 100 + Math.random() * 500,
+                y: 80 + Math.random() * 240,
+                vx: (Math.random() < 0.5 ? 1 : -1) * (1.0 + Math.random() * 0.8),
+                vy: (Math.random() - 0.5) * 0.4,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+        lastCaughtRecord = null;
+        updateHUD();
+        showZenToast(`🐟 Đã câu được <b>${sp.name}</b> (${w} kg) &bull; <span style="color:#fde68a">+$${r}</span>`);
+        state = 'idle';
+        return;
+    }
+
+    state = 'modal';
+    updateHUD();
+
+    document.getElementById('m-rarity').innerText = sp.rarity;
+    document.getElementById('m-name').innerText = sp.name;
+    document.getElementById('m-desc').innerHTML = `
+        Chiều dài: <b>${l} cm</b> &bull; Cân nặng: <b>${w} kg</b><br>
+        Giá trị bán: <b style="color:#fde68a">+$${r}</b>
+    `;
+
+    const sCan = document.getElementById('specimen-canvas');
+    const sCtx = sCan.getContext('2d');
+    sCtx.clearRect(0, 0, sCan.width, sCan.height);
+    sCtx.save();
+    sCtx.translate(sCan.width * 0.52, sCan.height * 0.52);
+    renderRealisticFishSpecimen(sCtx, sp, 195, 0.2, true);
+    sCtx.restore();
+
+    document.getElementById('fish-modal').classList.add('show');
+
+    if (autoFish) {
+        setTimeout(() => {
+            if (state === 'modal') sellCurrentFish();
+        }, 1400);
+    }
+}
+
+function sellCurrentFish() {
+    if (lastCaughtRecord) {
+        money += lastCaughtRecord.r;
+        lastCaughtRecord = null;
+        updateHUD();
+    }
+    document.getElementById('fish-modal').classList.remove('show');
+    state = 'idle';
+    hintMain.innerText = 'Nhấn [SPACE] hoặc [Chuột Trái] để Quăng Cần Câu';
+}
+
+function keepInAquarium() {
+    if (lastCaughtRecord) {
+        myAquariumFish.push({
+            sp: lastCaughtRecord.sp,
+            w: lastCaughtRecord.w,
+            x: 100 + Math.random() * 500,
+            y: 80 + Math.random() * 240,
+            vx: (Math.random() < 0.5 ? 1 : -1) * (1.0 + Math.random() * 0.8),
+            vy: (Math.random() - 0.5) * 0.4,
+            phase: Math.random() * Math.PI * 2
+        });
+        lastCaughtRecord = null;
+        updateHUD();
+    }
+    document.getElementById('fish-modal').classList.remove('show');
+    state = 'idle';
+    hintMain.innerText = 'Đã thả cá vào Bể Cá Cảnh! Nhấn [SPACE] để Quăng Câu tiếp';
+}
+
+document.getElementById('sell-btn').addEventListener('click', sellCurrentFish);
+document.getElementById('tank-btn').addEventListener('click', keepInAquarium);
+
+function updateHUD() {
+    document.getElementById('money-el').innerText = money.toLocaleString();
+    document.getElementById('count-el').innerText = totalCaught;
+    document.getElementById('dex-el').innerText = `${unlockedDex.size}/${FISH_SPECIES.length}`;
+    document.getElementById('tank-count').innerText = myAquariumFish.length;
+    document.getElementById('rod-name-el').innerText = ROD_TIERS[Math.min(ROD_TIERS.length - 1, rodLevel - 1)];
+
+    const cost = rodLevel * 50;
+    document.getElementById('upgrade-btn').innerText = rodLevel >= ROD_TIERS.length ? '🎣 Cần Tối Đa' : `🎣 Nâng Cần ($${cost})`;
+}
+
+// Vẽ Đàn Cá Bơi Dưới Nước, Phao Gỗ Balsa & Cần Câu Carbon Chi Tiết
+function drawSceneOverlay(tSec) {
+    uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+
+    // 1. Vẽ Đàn Cá Bơi Lội Dưới Làn Nước 3D
+    underwaterFish.forEach((f, idx) => {
+        f.phase += 0.14;
+        if ((state === 'floating' || state === 'biting') && idx === 0) {
+            const ang = Math.atan2(bobber3D.z - f.z, bobber3D.x - f.x);
+            f.angle = ang;
+            const d = Math.hypot(bobber3D.x - f.x, bobber3D.z - f.z);
+            if (d > 0.6) {
+                f.x += Math.cos(ang) * f.speed * 1.8;
+                f.z += Math.sin(ang) * f.speed * 1.8;
+            }
+        } else {
+            f.angle += (Math.random() - 0.5) * 0.04;
+            f.x += Math.cos(f.angle) * f.speed;
+            f.z += Math.sin(f.angle) * f.speed;
+            if (Math.hypot(f.x - boatPos.x, f.z - (boatPos.y - 6)) > 16) {
+                f.angle = Math.atan2((boatPos.y - 6) - f.z, boatPos.x - f.x);
+            }
+        }
+
+        const pFish = projectWorldToScreen(f.x, -0.35, f.z);
+        if (pFish && pFish.x > -100 && pFish.x < uiCanvas.width + 100 && pFish.y > uiCanvas.height * 0.35) {
+            const fishPx = Math.max(12, Math.min(75, pFish.scale * 0.08));
+            uiCtx.save();
+            uiCtx.translate(pFish.x, pFish.y);
+            uiCtx.rotate(f.angle);
+            uiCtx.scale(1.0, 0.65);
+            uiCtx.globalAlpha = 0.42;
+            renderRealisticFishSpecimen(uiCtx, f.sp, fishPx, f.phase, false);
+            uiCtx.restore();
+        }
+    });
+
+    // 2. Vẽ Phao Câu 3D Nổi Trên Mặt Hồ
+    let pBob = null;
+    if (state !== 'idle' && state !== 'modal') {
+        const bobY = state === 'flying'
+            ? bobber3D.y
+            : (state === 'biting' ? -0.12 + Math.sin(tSec * 18.0) * 0.07 : Math.sin(tSec * 3.2) * 0.03);
+
+        pBob = projectWorldToScreen(bobber3D.x, bobY, bobber3D.z);
+        if (pBob) {
+            const bs = Math.max(0.45, Math.min(2.2, pBob.scale * 0.016));
+            uiCtx.save();
+            uiCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            uiCtx.beginPath();
+            uiCtx.ellipse(pBob.x, pBob.y + 4 * bs, 8 * bs, 3 * bs, 0, 0, Math.PI * 2);
+            uiCtx.fill();
+
+            uiCtx.fillStyle = '#f8fafc';
+            uiCtx.beginPath();
+            uiCtx.ellipse(pBob.x, pBob.y - 4 * bs, 4 * bs, 10 * bs, 0, 0, Math.PI * 2);
+            uiCtx.fill();
+
+            uiCtx.fillStyle = '#ef4444';
+            uiCtx.beginPath();
+            uiCtx.ellipse(pBob.x, pBob.y - 11 * bs, 3.2 * bs, 5.5 * bs, 0, 0, Math.PI * 2);
+            uiCtx.fill();
+            uiCtx.restore();
+        }
+    }
+
+    // 3. Vẽ Cần Câu Góc Nhìn Thứ Nhất
+    const handX = uiCanvas.width * 0.73;
+    const handY = uiCanvas.height * 0.96;
+
+    const isPulling = (state === 'biting' || state === 'reeling');
+    const pullBendX = isPulling ? Math.sin(tSec * 15.0) * 12 : Math.sin(tSec * 1.5) * 3;
+    const pullBendY = isPulling ? 75 + Math.cos(tSec * 17.0) * 15 : Math.cos(tSec * 1.5) * 4;
+
+    const tipX = uiCanvas.width * 0.46 + pullBendX;
+    const tipY = uiCanvas.height * 0.22 + pullBendY;
+    const ctrlX = uiCanvas.width * 0.58;
+    const ctrlY = uiCanvas.height * 0.48 - (isPulling ? 40 : 10);
+
+    uiCtx.save();
+    uiCtx.strokeStyle = '#b45309';
+    uiCtx.lineWidth = 17;
+    uiCtx.lineCap = 'round';
+    uiCtx.beginPath();
+    uiCtx.moveTo(handX, handY);
+    uiCtx.lineTo(handX - 42, handY - 76);
+    uiCtx.stroke();
+
+    const reelX = handX - 48, reelY = handY - 66;
+    uiCtx.fillStyle = '#334155';
+    uiCtx.strokeStyle = '#94a3b8';
+    uiCtx.lineWidth = 2;
+    uiCtx.beginPath();
+    uiCtx.arc(reelX, reelY, 15, 0, Math.PI * 2);
+    uiCtx.fill();
+    uiCtx.stroke();
+
+    uiCtx.strokeStyle = '#fde68a';
+    uiCtx.lineWidth = 3;
+    uiCtx.beginPath();
+    uiCtx.moveTo(reelX, reelY);
+    uiCtx.lineTo(reelX + Math.cos(reelHandleAngle) * 18, reelY + Math.sin(reelHandleAngle) * 18);
+    uiCtx.stroke();
+
+    const segs = 16;
+    let px = handX - 42, py = handY - 76;
+    for (let i = 1; i <= segs; i++) {
+        const t = i / segs, invT = 1 - t;
+        const cx = invT * invT * (handX - 42) + 2 * invT * t * ctrlX + t * t * tipX;
+        const cy = invT * invT * (handY - 76) + 2 * invT * t * ctrlY + t * t * tipY;
+
+        uiCtx.strokeStyle = rodLevel >= 4 ? '#d97706' : '#1e293b';
+        uiCtx.lineWidth = Math.max(1.8, (1 - t) * 9.5);
+        uiCtx.beginPath();
+        uiCtx.moveTo(px, py);
+        uiCtx.lineTo(cx, cy);
+        uiCtx.stroke();
+        px = cx; py = cy;
+    }
+
+    uiCtx.strokeStyle = 'rgba(241, 245, 249, 0.65)';
+    uiCtx.lineWidth = 1.1;
+    uiCtx.beginPath();
+    uiCtx.moveTo(tipX, tipY);
+
+    if (pBob && state !== 'idle' && state !== 'modal') {
+        const sag = isPulling ? 3 : 40;
+        uiCtx.quadraticCurveTo((tipX + pBob.x) * 0.5, (tipY + pBob.y) * 0.5 + sag, pBob.x, pBob.y - 5);
+        uiCtx.stroke();
+    } else {
+        const hx = tipX + Math.sin(tSec * 2.2) * 6;
+        const hy = tipY + 60;
+        uiCtx.lineTo(hx, hy);
+        uiCtx.stroke();
+
+        uiCtx.fillStyle = '#f8fafc';
+        uiCtx.beginPath(); uiCtx.ellipse(hx, hy + 6, 3.5, 9, 0, 0, Math.PI * 2); uiCtx.fill();
+        uiCtx.fillStyle = '#ef4444';
+        uiCtx.beginPath(); uiCtx.arc(hx, hy, 3.5, 0, Math.PI * 2); uiCtx.fill();
+    }
+    uiCtx.restore();
+}
+
+// ============================================================================
+// PHẦN 5: BỂ CÁ CẢNH THỦY SINH (ZEN AQUARIUM)
+// ============================================================================
+let aquaOpen = false;
+const aquaCanvas = document.getElementById('aquarium-canvas');
+const aquaCtx = aquaCanvas.getContext('2d');
+
+document.getElementById('open-aqua-btn').addEventListener('click', () => {
+    aquaOpen = true;
+    document.getElementById('aqua-modal').style.display = 'block';
+});
+
+function closeAquarium() {
+    aquaOpen = false;
+    document.getElementById('aqua-modal').style.display = 'none';
+}
+
+aquaCanvas.addEventListener('mousedown', e => {
+    const rect = aquaCanvas.getBoundingClientRect();
+    for (let i = 0; i < 5; i++) {
+        aquariumFood.push({
+            x: (e.clientX - rect.left) + (Math.random() - 0.5) * 30,
+            y: (e.clientY - rect.top),
+            vy: 0.6 + Math.random() * 0.4
+        });
+    }
+    sound.plop(false);
+});
+
+function renderAquarium(tSec) {
+    if (!aquaOpen) return;
+    aquaCtx.clearRect(0, 0, aquaCanvas.width, aquaCanvas.height);
+
+    aquaCtx.save();
+    const rayGrad = aquaCtx.createLinearGradient(0, 0, 0, aquaCanvas.height);
+    rayGrad.addColorStop(0, 'rgba(125, 211, 252, 0.14)');
+    rayGrad.addColorStop(1, 'rgba(125, 211, 252, 0.0)');
+    aquaCtx.fillStyle = rayGrad;
+    for (let r = 0; r < 4; r++) {
+        aquaCtx.beginPath();
+        const rx = 120 + r * 160 + Math.sin(tSec + r) * 15;
+        aquaCtx.moveTo(rx, 0);
+        aquaCtx.lineTo(rx + 60, 0);
+        aquaCtx.lineTo(rx + 140, aquaCanvas.height);
+        aquaCtx.lineTo(rx + 20, aquaCanvas.height);
+        aquaCtx.fill();
+    }
+    aquaCtx.restore();
+
+    for (let p = 0; p < 14; p++) {
+        const px = 40 + p * 52;
+        aquaCtx.strokeStyle = '#059669';
+        aquaCtx.lineWidth = 6;
+        aquaCtx.lineCap = 'round';
+        aquaCtx.beginPath();
+        aquaCtx.moveTo(px, aquaCanvas.height);
+        aquaCtx.quadraticCurveTo(
+            px + Math.sin(tSec * 2 + p) * 16,
+            aquaCanvas.height - 45,
+            px + Math.cos(tSec * 1.5 + p) * 20,
+            aquaCanvas.height - 85 - (p % 3) * 20
+        );
+        aquaCtx.stroke();
+    }
+
+    aquaCtx.fillStyle = '#fde68a';
+    for (let i = aquariumFood.length - 1; i >= 0; i--) {
+        const fd = aquariumFood[i];
+        fd.y += fd.vy;
+        aquaCtx.beginPath();
+        aquaCtx.arc(fd.x, fd.y, 3.5, 0, Math.PI * 2);
+        aquaCtx.fill();
+        if (fd.y > aquaCanvas.height - 15) aquariumFood.splice(i, 1);
+    }
+
+    myAquariumFish.forEach(f => {
+        f.phase += 0.14;
+        if (aquariumFood.length > 0) {
+            const target = aquariumFood[0];
+            const dx = target.x - f.x, dy = target.y - f.y;
+            const d = Math.hypot(dx, dy);
+            if (d < 12) {
+                aquariumFood.shift();
+            } else {
+                f.vx += (dx / d) * 0.08;
+                f.vy += (dy / d) * 0.08;
+            }
+        }
+        f.vx = Math.max(-2.2, Math.min(2.2, f.vx));
+        f.vy = Math.max(-1.2, Math.min(1.2, f.vy));
+        f.x += f.vx;
+        f.y += f.vy;
+
+        if (f.x < 70) f.vx = Math.abs(f.vx);
+        if (f.x > aquaCanvas.width - 70) f.vx = -Math.abs(f.vx);
+        if (f.y < 50) f.vy = Math.abs(f.vy);
+        if (f.y > aquaCanvas.height - 50) f.vy = -Math.abs(f.vy);
+
+        aquaCtx.save();
+        aquaCtx.translate(f.x, f.y);
+        if (f.vx < 0) aquaCtx.scale(-1, 1);
+        renderRealisticFishSpecimen(aquaCtx, f.sp, 95, f.phase, true);
+        aquaCtx.restore();
+    });
+}
+
+// ============================================================================
+// PHẦN 6: VÒNG LẶP CHÍNH 60FPS & ĐIỀU KHIỂN
+// ============================================================================
+function animate(nowMs) {
+    requestAnimationFrame(animate);
+    const tSec = nowMs * 0.001;
+
+    if (aquaOpen) {
+        renderAquarium(tSec);
+        return;
+    }
+
+    if (state === 'idle') {
+        if (keys['a'] || keys['arrowleft']) camYaw -= 0.018;
+        if (keys['d'] || keys['arrowright']) camYaw += 0.018;
+        if (keys['w'] || keys['arrowup']) {
+            boatPos.x += Math.sin(camYaw) * 0.12;
+            boatPos.y -= Math.cos(camYaw) * 0.12;
+        }
+        if (keys['s'] || keys['arrowdown']) {
+            boatPos.x -= Math.sin(camYaw) * 0.08;
+            boatPos.y += Math.cos(camYaw) * 0.08;
+        }
+        if (autoFish) {
+            stateTimer++;
+            if (stateTimer > 45) { stateTimer = 0; castRod(); }
+        }
+    } else if (state === 'flying') {
+        bobber3D.x += bobber3D.vx;
+        bobber3D.y += bobber3D.vy;
+        bobber3D.z += bobber3D.vz;
+        bobber3D.vy -= 0.012;
+        if (bobber3D.y <= 0.0) {
+            bobber3D.y = 0.0;
+            state = 'floating';
+            biteRip = 0.9;
+            sound.plop(false);
+            stateTimer = Math.max(70, 190 - rodLevel * 22);
+            hintMain.innerText = '🌊 Phao đã nổi trên mặt hồ... Chờ cá bơi tới đớp mồi';
+            hintSub.innerText = 'Kéo chuột để ngắm cảnh hồ 3D trong lúc chờ cá';
+        }
+    } else if (state === 'floating') {
+        biteRip = Math.max(0.2, biteRip * 0.98);
+        stateTimer--;
+        if (stateTimer <= 0) triggerBite();
+    } else if (state === 'biting') {
+        stateTimer--;
+        if (stateTimer <= 0) {
+            state = 'idle';
+            biteRip = 0;
+            hintMain.innerText = 'Cá đã nhả mồi bơi đi! Nhấn [SPACE] hoặc [Chuột] để quăng lại';
+        }
+    } else if (state === 'reeling') {
+        bobber3D.x += (boatPos.x - bobber3D.x) * 0.03;
+        bobber3D.z += ((boatPos.y + 1.5) - bobber3D.z) * 0.03;
+        reelHandleAngle += 0.35;
+
+        if (autoFish) {
+            tensionProgress += 1.2;
+        } else {
+            tensionProgress -= 0.22;
+        }
+        tensionFill.style.width = Math.max(0, Math.min(100, tensionProgress)) + '%';
+
+        if (tensionProgress >= 100) completeCatch();
+        else if (tensionProgress <= 0) {
+            state = 'idle';
+            tensionBox.style.display = 'none';
+            hintMain.innerText = 'Cá vùng mạnh làm tuột lưỡi câu! Nhấn [SPACE] để quăng lại';
+        }
+    }
+
+    gl.uniform2f(uResLoc, glCanvas.width, glCanvas.height);
+    gl.uniform1f(uTimeLoc, tSec);
+    gl.uniform2f(uCamRotLoc, camYaw, camPitch);
+    gl.uniform2f(uBoatPosLoc, boatPos.x, boatPos.y);
+    gl.uniform3f(uBobberLoc, bobber3D.x, bobber3D.y, bobber3D.z);
+    gl.uniform1f(uBiteRipLoc, state === 'idle' ? 0.0 : biteRip);
+    gl.uniform1i(uMoodLoc, currentMood);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    drawSceneOverlay(tSec);
+}
+
+function handleAction() {
+    sound.init();
+    if (aquaOpen) return;
+    if (state === 'modal') {
+        sellCurrentFish();
+    } else if (state === 'idle') {
+        castRod();
+    } else if (state === 'biting') {
+        startReeling();
+    } else if (state === 'reeling') {
+        tensionProgress += 16 + rodLevel * 3;
+        reelHandleAngle += 1.2;
+        sound.reelClick();
+    } else if (state === 'floating') {
+        state = 'idle';
+        hintMain.innerText = 'Đã thu dây câu. Nhấn [SPACE] hoặc [Chuột Trái] để Quăng Cần Câu';
+    }
+}
+
+let mouseDownTime = 0;
+window.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('#top-left') || e.target.closest('#top-right') || e.target.closest('.overlay-modal') || e.target.closest('#fish-modal')) return;
+    isDraggingLook = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    mouseDownTime = performance.now();
+});
+
+window.addEventListener('mousemove', e => {
+    if (!isDraggingLook) return;
+    camYaw = camYaw + (e.clientX - lastMouseX) * 0.0035;
+    camPitch = Math.max(-0.35, Math.min(0.15, camPitch - (e.clientY - lastMouseY) * 0.0025));
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+});
+
+window.addEventListener('mouseup', () => {
+    if (!isDraggingLook) return;
+    isDraggingLook = false;
+    if (performance.now() - mouseDownTime < 220) {
+        handleAction();
+    }
+});
+
+window.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    keys[k] = true;
+    if (k === ' ') {
+        e.preventDefault();
+        handleAction();
+    }
+    if (k === 'h') toggleHideAllUI();
+    if (k === 'a') document.getElementById('afk-btn').click();
+    if (k === 'm') document.getElementById('sound-btn').click();
+});
+
+window.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
+});
+
+function setAtmosphere(m, btn) {
+    currentMood = m;
+    btn.parentElement.querySelectorAll('.atmo-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function setBait(bIdx, btn) {
+    currentBait = bIdx;
+    btn.parentElement.querySelectorAll('.atmo-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+document.getElementById('upgrade-btn').addEventListener('click', () => {
+    sound.init();
+    const cost = rodLevel * 50;
+    if (rodLevel < ROD_TIERS.length && money >= cost) {
+        money -= cost;
+        rodLevel++;
+        sound.plop(false);
+        updateHUD();
+    }
+});
+
+document.getElementById('afk-btn').addEventListener('click', e => {
+    sound.init();
+    autoFish = !autoFish;
+    e.target.innerText = `🤖 Tự Động Câu Chill (AFK) [A]: ${autoFish ? 'BẬT' : 'TẮT'}`;
+    e.target.classList.toggle('active', autoFish);
+});
+
+document.getElementById('sound-btn').addEventListener('click', e => {
+    sound.init();
+    sound.enabled = !sound.enabled;
+    e.target.innerText = `🎧 Nhạc Guitar & Tiếng Nước [M]: ${sound.enabled ? 'BẬT' : 'TẮT'}`;
+    e.target.classList.toggle('active', sound.enabled);
+});
+
+document.getElementById('res-btn').addEventListener('click', e => {
+    renderScale = renderScale < 0.7 ? 0.85 : 0.55;
+    resizeAll();
+    e.target.innerText = renderScale > 0.7
+        ? '⚡ Đồ Họa: Ultra HD'
+        : '⚡ Đồ Họa: Siêu Mượt (60 FPS)';
+});
+
+document.getElementById('open-dex-btn').addEventListener('click', () => {
+    const grid = document.getElementById('dex-grid');
+    grid.innerHTML = '';
+    FISH_SPECIES.forEach(sp => {
+        const isUnl = unlockedDex.has(sp.id);
+        const card = document.createElement('div');
+        card.className = 'dex-card ' + (isUnl ? 'unlocked' : '');
+        const c = document.createElement('canvas');
+        c.width = 180;
+        c.height = 75;
+        const cCtx = c.getContext('2d');
+        cCtx.save();
+        cCtx.translate(95, 38);
+        if (!isUnl) cCtx.filter = 'brightness(0.1)';
+        renderRealisticFishSpecimen(cCtx, sp, 120, 0, true);
+        cCtx.restore();
+        card.appendChild(c);
+        card.innerHTML += `
+            <div style="font-size:13px; font-weight:700; color:${isUnl ? '#fff' : '#64748b'}; margin-top:4px;">
+                ${isUnl ? sp.name : 'Chưa Khám Phá'}
+            </div>
+            <div style="font-size:11px; color:#7dd3fc;">${sp.rarity}</div>
+            <div style="font-size:11.5px; color:#fde68a; font-weight:700;">Giá trị: $${sp.price}</div>
+        `;
+        grid.appendChild(card);
+    });
+    document.getElementById('dex-modal').style.display = 'block';
+});
+
+updateHUD();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
